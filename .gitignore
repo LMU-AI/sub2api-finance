@@ -32,6 +32,15 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# 含数据库密码与密钥，不上传
+docker-compose.yml
+docker-compose.*.yml
+docker-compose.yaml
+
+# 财务数据库（本地数据，不上传）
+/data/
 
 # vercel
 .vercel

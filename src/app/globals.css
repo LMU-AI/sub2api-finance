@@ -1,26 +1,92 @@
 @import "tailwindcss";
 
+/* ===== Stripe 设计风格 token 覆盖（正式 / SaaS / 金融级） ===== */
+@theme {
+  /* 圆角:Stripe 偏克制 — 卡片 15px、按钮 7px */
+  --radius-md: 0.25rem; /* 4px */
+  --radius-lg: 0.4375rem; /* 7px — 按钮 / 导航项 */
+  --radius-xl: 0.9375rem; /* 15px — 卡片 */
+  --radius-2xl: 1.375rem; /* 22px — 大卡 / 胶囊 */
+
+  /* 中性色 → Stripe 冷调灰 / 深海军蓝墨色 */
+  --color-slate-50: #f2f6f9;
+  --color-slate-100: #ebeef3;
+  --color-slate-200: #e3e8ee;
+  --color-slate-300: #c1c9d2;
+  --color-slate-400: #8792a2;
+  --color-slate-500: #697386;
+  --color-slate-600: #425466;
+  --color-slate-700: #344563;
+  --color-slate-800: #0a2540;
+  --color-slate-900: #0a2540;
+
+  /* 主色 accent → Stripe 蓝 #517BDF */
+  --color-indigo-50: #eef2fc;
+  --color-indigo-100: #dde6fa;
+  --color-indigo-200: #c3d2f4;
+  --color-indigo-500: #6b8ee4;
+  --color-indigo-600: #517bdf;
+  --color-indigo-700: #3e68c8;
+
+  /* 成功 / 利润 → 绿色 */
+  --color-emerald-50: #e6f4ec;
+  --color-emerald-100: #d7eddf;
+  --color-emerald-200: #bfe0cb;
+  --color-emerald-500: #75b88a;
+  --color-emerald-600: #2f8f5b;
+  --color-emerald-700: #237046;
+
+  /* 危险 / 亏损 → 红色 */
+  --color-red-50: #fbeaee;
+  --color-red-200: #f3c9d2;
+  --color-red-500: #e0698a;
+  --color-red-600: #c8324b;
+  --color-red-700: #a8233b;
+
+  /* 警示 → Stripe 浅琥珀 */
+  --color-amber-50: #fae6c2;
+  --color-amber-200: #f0dcae;
+  --color-amber-400: #e6c173;
+  --color-amber-500: #d9a93f;
+  --color-amber-600: #a67c1e;
+  --color-amber-800: #6e5414;
+  --color-amber-900: #5a4410;
+
+  --color-sky-500: #5a8dd6;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f2f6f9;
+  color: #0a2540;
+  font-family:
+    "Inter Variable", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Microsoft YaHei", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Stripe 焦点态:2px accent 描边 + 2px offset */
+:focus-visible {
+  outline: 2px solid #517bdf;
+  outline-offset: 2px;
 }

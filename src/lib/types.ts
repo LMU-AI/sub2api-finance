@@ -1,0 +1,176 @@
+export interface UsersSummary {
+  total: number;
+  active: number;
+  sumBalance: number;
+  sumReferralUsable: number;
+  sumTotalRecharged: number;
+  balancePos: number;
+  balanceZero: number;
+  balanceNeg: number;
+  sumNeg: number;
+  paidUsers: number;
+}
+
+export interface PaymentByStatus {
+  status: string;
+  orderType: string;
+  cnt: number;
+  amount: number;
+  refund: number;
+}
+export interface PaymentMonthly {
+  month: string;
+  orderType: string;
+  cnt: number;
+  net: number;
+}
+export interface PaymentDaily {
+  day: string;
+  net: number;
+}
+
+export interface UsageByBillingType {
+  billingType: number;
+  cnt: number;
+  totalCost: number;
+  actualCost: number;
+}
+export interface UsageByModel {
+  model: string;
+  billingType: number;
+  cnt: number;
+  totalCost: number;
+  actualCost: number;
+}
+export interface UsageByPlatform {
+  platform: string;
+  billingType: number;
+  cnt: number;
+  totalCost: number;
+  actualCost: number;
+}
+export interface UsageMonthly {
+  month: string;
+  billingType: number;
+  totalCost: number;
+  actualCost: number;
+}
+export interface UsageDaily {
+  day: string;
+  billingType: number;
+  actualCost: number;
+}
+export interface MultiplierBucket {
+  multiplier: number;
+  cnt: number;
+}
+
+export interface RedeemRow {
+  type: string;
+  status: string;
+  cnt: number;
+  value: number;
+}
+export interface ReferralRow {
+  status: string;
+  cnt: number;
+  gross: number;
+  released: number;
+}
+
+export interface SubPlan {
+  planId: number;
+  groupId: number;
+  name: string;
+  price: number;
+  validityDays: number;
+  dailyLimit: number;
+  weeklyLimit: number;
+  monthlyLimit: number;
+}
+export interface ActiveSubGroup {
+  groupId: number;
+  name: string;
+  cnt: number;
+  wkUsed: number;
+  moUsed: number;
+}
+export interface SubStatus {
+  status: string;
+  cnt: number;
+}
+export interface SubRevenue {
+  cnt: number;
+  netSold: number;
+  recognized: number;
+  deferred: number;
+}
+export interface HeavySubUser {
+  email: string;
+  groupName: string;
+  moUsed: number;
+  wkUsed: number;
+  moLimit: number;
+}
+export interface TopUser {
+  id: number;
+  email: string;
+  balance: number;
+  recharged: number;
+  spent: number;
+}
+
+export interface Snapshot {
+  generatedAt: string;
+  usagePeriod: { first: string | null; last: string | null };
+  users: UsersSummary;
+  payments: {
+    byStatus: PaymentByStatus[];
+    monthly: PaymentMonthly[];
+    daily: PaymentDaily[];
+    totalRefund: number;
+  };
+  usage: {
+    byBillingType: UsageByBillingType[];
+    byModel: UsageByModel[];
+    byPlatform: UsageByPlatform[];
+    monthly: UsageMonthly[];
+    daily: UsageDaily[];
+    multiplierDist: MultiplierBucket[];
+  };
+  redeem: RedeemRow[];
+  referral: ReferralRow[];
+  subscriptions: {
+    plans: SubPlan[];
+    activeByGroup: ActiveSubGroup[];
+    statusCounts: SubStatus[];
+    revenue: SubRevenue;
+    heavyUsers: HeavySubUser[];
+  };
+  topUsers: TopUser[];
+}
+
+export type Platform = "claude" | "gpt" | "domestic" | "server" | "other";
+export const PLATFORMS: Platform[] = [
+  "claude",
+  "gpt",
+  "domestic",
+  "server",
+  "other",
+];
+export const PLATFORM_LABEL: Record<Platform, string> = {
+  claude: "Claude（Anthropic）",
+  gpt: "GPT（OpenAI）",
+  domestic: "国产模型",
+  server: "服务器 / RDS",
+  other: "其他",
+};
+
+export interface MonthlyCost {
+  id: number;
+  yearMonth: string;
+  platform: Platform;
+  amountRmb: number;
+  note: string | null;
+  updatedAt: string;
+}
