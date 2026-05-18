@@ -4,6 +4,8 @@ import { env } from "./env";
 // numeric / bigint 统一转数字
 types.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));
 types.setTypeParser(20, (v) => (v === null ? null : parseInt(v, 10)));
+// date 原样返回字符串 YYYY-MM-DD，避免 Date 对象按时区回退一天
+types.setTypeParser(1082, (v) => v);
 
 declare global {
   // eslint-disable-next-line no-var
@@ -29,6 +31,15 @@ const SCHEMA = `
   -- 成本改为追加式明细账：移除旧的「月份+平台」唯一约束
   ALTER TABLE monthly_costs
     DROP CONSTRAINT IF EXISTS monthly_costs_year_month_platform_key;
+  -- 对公转账等线下收款明细账（不进 sub2api 支付流水）
+  CREATE TABLE IF NOT EXISTS manual_revenue (
+    id          BIGSERIAL PRIMARY KEY,
+    entry_date  DATE NOT NULL,
+    amount_rmb  NUMERIC(20,2) NOT NULL DEFAULT 0,
+    client      TEXT,
+    note        TEXT,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT

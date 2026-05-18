@@ -7,7 +7,7 @@ import { rmb, usd, pct, num, fmtTime } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const { snap, metrics } = await loadData();
+  const { snap, metrics, manualRevenue } = await loadData();
 
   if (!snap || !metrics) {
     return (
@@ -18,13 +18,15 @@ export default async function OverviewPage() {
   }
 
   const { revenue, cost, profit, liabilities, consumption, unit } = metrics;
-  const netIncome = revenue.balanceRecharged + revenue.subSold;
+  const netIncome =
+    revenue.balanceRecharged + revenue.subSold + revenue.manualTransfer;
 
   // 月度趋势:收款（实收）/ 成本（按官方价值占比分摊）/ 利润
   const months = Array.from(
     new Set([
       ...snap.payments.monthly.map((m) => m.month),
       ...snap.usage.monthly.map((m) => m.month),
+      ...manualRevenue.map((m) => m.date.slice(0, 7)),
     ]),
   )
     .filter(Boolean)
@@ -39,6 +41,10 @@ export default async function OverviewPage() {
   const revByMonth: Record<string, number> = {};
   for (const m of snap.payments.monthly)
     revByMonth[m.month] = (revByMonth[m.month] ?? 0) + m.net;
+  for (const m of manualRevenue) {
+    const mo = m.date.slice(0, 7);
+    revByMonth[mo] = (revByMonth[mo] ?? 0) + m.amountRmb;
+  }
   const trend = months.map((mo) => {
     const 收款 = revByMonth[mo] ?? 0;
     const 成本 =
@@ -82,7 +88,7 @@ export default async function OverviewPage() {
           label="累计净收款"
           value={rmb(netIncome)}
           accent="indigo"
-          sub={`充值 ${rmb(revenue.balanceRecharged)} + 订阅 ${rmb(revenue.subSold)}`}
+          sub={`充值 ${rmb(revenue.balanceRecharged)} + 订阅 ${rmb(revenue.subSold)} + 对公 ${rmb(revenue.manualTransfer)}`}
         />
         <Kpi
           label="上游总成本"
@@ -171,7 +177,8 @@ export default async function OverviewPage() {
             data={[
               { name: "余额充值", value: Math.round(revenue.balanceRecharged) },
               { name: "订阅卡销售", value: Math.round(revenue.subSold) },
-            ]}
+              { name: "对公转账", value: Math.round(revenue.manualTransfer) },
+            ].filter((d) => d.value > 0)}
           />
         </Card>
         <Card>

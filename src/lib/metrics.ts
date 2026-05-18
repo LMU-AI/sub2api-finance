@@ -1,4 +1,4 @@
-import type { MonthlyCost, Platform, Snapshot } from "./types";
+import type { ManualRevenue, MonthlyCost, Platform, Snapshot } from "./types";
 
 export type Bucket = "claude" | "gpt" | "domestic";
 
@@ -52,6 +52,7 @@ export interface Metrics {
     subSold: number;
     subRecognized: number;
     subDeferred: number;
+    manualTransfer: number;
   };
   consumption: {
     officialTotal: number;
@@ -110,7 +111,11 @@ function pnl(revenue: number, cost: number): PnL {
   };
 }
 
-export function computeMetrics(snap: Snapshot, costs: MonthlyCost[]): Metrics {
+export function computeMetrics(
+  snap: Snapshot,
+  costs: MonthlyCost[],
+  manualRevenue: ManualRevenue[],
+): Metrics {
   // ---- 成本（按平台汇总）----
   const byPlatform: Record<Platform, number> = {
     claude: 0,
@@ -131,6 +136,8 @@ export function computeMetrics(snap: Snapshot, costs: MonthlyCost[]): Metrics {
   const subSold = snap.subscriptions.revenue.netSold;
   const subRecognized = snap.subscriptions.revenue.recognized;
   const subDeferred = snap.subscriptions.revenue.deferred;
+  // 对公转账：线下实收的现金，消耗已在 sub2api 内计入，故只反映到现金口径
+  const manualTransfer = manualRevenue.reduce((a, b) => a + b.amountRmb, 0);
 
   const bt0 = snap.usage.byBillingType.find((b) => b.billingType === 0);
   const bt1 = snap.usage.byBillingType.find((b) => b.billingType === 1);
@@ -149,7 +156,7 @@ export function computeMetrics(snap: Snapshot, costs: MonthlyCost[]): Metrics {
 
   // ---- 三口径利润 ----
   const profit = {
-    cash: pnl(balanceRecharged + subSold, totalCost),
+    cash: pnl(balanceRecharged + subSold + manualTransfer, totalCost),
     contract: pnl(balanceConsumed + subSold, totalCost),
     accrual: pnl(balanceConsumed + subRecognized, totalCost),
   };
@@ -278,6 +285,7 @@ export function computeMetrics(snap: Snapshot, costs: MonthlyCost[]): Metrics {
       subSold,
       subRecognized,
       subDeferred,
+      manualTransfer,
     },
     consumption: {
       officialTotal,

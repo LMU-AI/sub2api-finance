@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { addCost, deleteCost } from "@/lib/costs";
-import type { Platform } from "@/lib/types";
+import { addManualRevenue, deleteManualRevenue } from "@/lib/revenue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,15 +7,15 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
-      yearMonth?: string;
-      platform?: string;
+      date?: string;
       amountRmb?: unknown;
+      client?: string;
       note?: string;
     };
-    await addCost(
-      String(body.yearMonth || ""),
-      String(body.platform || "") as Platform,
+    await addManualRevenue(
+      String(body.date || ""),
       Number(body.amountRmb),
+      String(body.client || ""),
       String(body.note || ""),
     );
     return NextResponse.json({ ok: true });
@@ -31,6 +30,6 @@ export async function DELETE(req: NextRequest) {
   if (!Number.isFinite(id)) {
     return NextResponse.json({ ok: false, error: "无效 id" }, { status: 400 });
   }
-  await deleteCost(id);
+  await deleteManualRevenue(id);
   return NextResponse.json({ ok: true });
 }

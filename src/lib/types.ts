@@ -174,3 +174,13 @@ export interface MonthlyCost {
   note: string | null;
   updatedAt: string;
 }
+
+/** 对公转账等线下收款明细（不进 sub2api 支付流水，仅计入现金口径） */
+export interface ManualRevenue {
+  id: number;
+  date: string;
+  amountRmb: number;
+  client: string | null;
+  note: string | null;
+  updatedAt: string;
+}

@@ -1,6 +1,7 @@
 import { loadData } from "@/lib/load";
 import { Card, Empty, Kpi, SectionTitle, Table, Badge } from "@/components/ui";
 import { Donut, DailyLines } from "@/components/charts";
+import { RevenueManager } from "@/components/RevenueManager";
 import { rmb, num } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -17,15 +18,24 @@ const STATUS_CN: Record<string, string> = {
 };
 
 export default async function RevenuePage() {
-  const { snap, metrics } = await loadData();
+  const { snap, metrics, manualRevenue } = await loadData();
   if (!snap || !metrics) {
     return <Empty>尚无数据，请先在右上角刷新。</Empty>;
   }
 
-  const dailyData = snap.payments.daily.map((d) => ({
-    day: d.day.slice(5),
-    收款: Math.round(d.net),
-  }));
+  // 每日收款 = sub2api 支付流水 + 近 30 天内的对公转账
+  const cutoff = new Date(Date.now() - 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const dayNet: Record<string, number> = {};
+  for (const d of snap.payments.daily)
+    dayNet[d.day] = (dayNet[d.day] ?? 0) + d.net;
+  for (const m of manualRevenue)
+    if (m.date >= cutoff)
+      dayNet[m.date] = (dayNet[m.date] ?? 0) + m.amountRmb;
+  const dailyData = Object.keys(dayNet)
+    .sort()
+    .map((day) => ({ day: day.slice(5), 收款: Math.round(dayNet[day]) }));
 
   const grossPaid = snap.payments.byStatus
     .filter((r) =>
@@ -46,12 +56,17 @@ export default async function RevenuePage() {
       <h1 className="text-xl font-bold text-slate-800">收入分析</h1>
       <p className="mt-1 text-xs text-slate-400">充值、订阅、退款与支付明细</p>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi label="累计支付(毛)" value={rmb(grossPaid)} accent="indigo" />
         <Kpi
           label="累计净收款"
-          value={rmb(metrics.revenue.balanceRecharged + metrics.revenue.subSold)}
+          value={rmb(
+            metrics.revenue.balanceRecharged +
+              metrics.revenue.subSold +
+              metrics.revenue.manualTransfer,
+          )}
           accent="emerald"
+          sub="含对公转账"
         />
         <Kpi
           label="余额充值净额"
@@ -64,6 +79,12 @@ export default async function RevenuePage() {
           accent="sky"
         />
         <Kpi
+          label="对公转账"
+          value={rmb(metrics.revenue.manualTransfer)}
+          accent="sky"
+          sub="线下打款手工录入"
+        />
+        <Kpi
           label="累计退款"
           value={rmb(snap.payments.totalRefund)}
           accent="red"
@@ -71,7 +92,7 @@ export default async function RevenuePage() {
         />
       </div>
 
-      <SectionTitle hint="余额充值与订阅卡销售净额占比">
+      <SectionTitle hint="余额充值、订阅卡销售与对公转账净额占比">
         收款构成
       </SectionTitle>
       <Card>
@@ -86,7 +107,11 @@ export default async function RevenuePage() {
                 name: "订阅卡销售",
                 value: Math.round(metrics.revenue.subSold),
               },
-            ]}
+              {
+                name: "对公转账",
+                value: Math.round(metrics.revenue.manualTransfer),
+              },
+            ].filter((d) => d.value > 0)}
           />
         </div>
       </Card>
@@ -145,6 +170,11 @@ export default async function RevenuePage() {
           ))}
         </Table>
       </Card>
+
+      <SectionTitle hint="线下对公打款不进 sub2api 支付流水，需手工录入，仅计入现金口径">
+        对公转账录入
+      </SectionTitle>
+      <RevenueManager entries={manualRevenue} />
     </div>
   );
 }
