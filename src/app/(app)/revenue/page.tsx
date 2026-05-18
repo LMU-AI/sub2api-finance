@@ -1,7 +1,6 @@
 import { loadData } from "@/lib/load";
 import { Card, Empty, Kpi, SectionTitle, Table, Badge } from "@/components/ui";
 import { Donut, DailyLines } from "@/components/charts";
-import { RevenueManager } from "@/components/RevenueManager";
 import { rmb, num } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -170,11 +169,6 @@ export default async function RevenuePage() {
           ))}
         </Table>
       </Card>
-
-      <SectionTitle hint="线下对公打款不进 sub2api 支付流水，需手工录入，仅计入现金口径">
-        对公转账录入
-      </SectionTitle>
-      <RevenueManager entries={manualRevenue} />
     </div>
   );
 }

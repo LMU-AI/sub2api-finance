@@ -70,12 +70,23 @@ function IconCost() {
     </svg>
   );
 }
+function IconTransfer() {
+  return (
+    <svg {...svg}>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <line x1="6" y1="12" x2="6" y2="12" />
+      <line x1="18" y1="12" x2="18" y2="12" />
+    </svg>
+  );
+}
 
 const LINKS = [
   { href: "/", label: "经营总览", Icon: IconOverview },
   { href: "/consumption", label: "消耗与毛利", Icon: IconConsumption },
   { href: "/subscriptions", label: "订阅专项", Icon: IconSubscription },
   { href: "/revenue", label: "收入分析", Icon: IconRevenue },
+  { href: "/manual-revenue", label: "对公转账", Icon: IconTransfer },
   { href: "/users", label: "用户分析", Icon: IconUsers },
   { href: "/costs", label: "成本录入", Icon: IconCost },
 ];
