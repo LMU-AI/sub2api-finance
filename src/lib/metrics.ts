@@ -1,4 +1,10 @@
-import type { ManualRevenue, MonthlyCost, Platform, Snapshot } from "./types";
+import type {
+  BankMonthlyCost,
+  ManualRevenue,
+  MonthlyCost,
+  Platform,
+  Snapshot,
+} from "./types";
 
 export type Bucket = "claude" | "gpt" | "domestic";
 
@@ -45,7 +51,14 @@ export interface SubBreakeven {
 
 export interface Metrics {
   hasCost: boolean;
-  cost: { total: number; byPlatform: Record<Platform, number>; server: number };
+  cost: {
+    total: number; // 权威总成本：有银行流水则=银行流水，否则=手工录入
+    byPlatform: Record<Platform, number>; // 手工录入分平台（参考/分平台单位成本用）
+    server: number;
+    bank: number; // 银行流水实付合计
+    manual: number; // 手工录入合计
+    byMonth: BankMonthlyCost[]; // 银行流水按月实付
+  };
   revenue: {
     balanceRecharged: number;
     balanceConsumed: number;
@@ -115,8 +128,10 @@ export function computeMetrics(
   snap: Snapshot,
   costs: MonthlyCost[],
   manualRevenue: ManualRevenue[],
+  bankMonthly: BankMonthlyCost[] = [],
 ): Metrics {
-  // ---- 成本（按平台汇总）----
+  // ---- 成本 ----
+  // 手工录入（分平台，供分平台单位成本参考）
   const byPlatform: Record<Platform, number> = {
     claude: 0,
     gpt: 0,
@@ -125,7 +140,12 @@ export function computeMetrics(
     other: 0,
   };
   for (const c of costs) byPlatform[c.platform] += c.amountRmb;
-  const totalCost = Object.values(byPlatform).reduce((a, b) => a + b, 0);
+  const manualTotal = Object.values(byPlatform).reduce((a, b) => a + b, 0);
+  const hasManual = manualTotal > 0;
+  // 银行流水实付（权威总成本，所有账面支出都走该卡）
+  const bankTotal = bankMonthly.reduce((a, b) => a + b.cost, 0);
+  // 权威总成本：优先银行流水，回退手工
+  const totalCost = bankTotal > 0 ? bankTotal : manualTotal;
   const hasCost = totalCost > 0;
 
   // ---- 收入 ----
@@ -208,7 +228,7 @@ export function computeMetrics(
     bucket: b,
     official: bk[b].official,
     charged: bk[b].charged,
-    cost: hasCost ? bucketCost[b] : null,
+    cost: hasManual ? bucketCost[b] : null,
     costPerDollar: costPerDollar[b],
   }));
 
@@ -278,7 +298,14 @@ export function computeMetrics(
 
   return {
     hasCost,
-    cost: { total: totalCost, byPlatform, server: byPlatform.server },
+    cost: {
+      total: totalCost,
+      byPlatform,
+      server: byPlatform.server,
+      bank: bankTotal,
+      manual: manualTotal,
+      byMonth: bankMonthly,
+    },
     revenue: {
       balanceRecharged,
       balanceConsumed,

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CostsPage() {
   const { costs, metrics } = await loadData();
+  const bankIsSource = (metrics?.cost.bank ?? 0) > 0;
 
   const byPlatform: Record<string, number> = {};
   const countByPlatform: Record<string, number> = {};
@@ -25,16 +26,22 @@ export default async function CostsPage() {
     <div>
       <h1 className="text-xl font-bold text-slate-800">成本录入</h1>
       <p className="mt-1 text-xs text-slate-400">
-        数据库没有上游采购成本，需在此手工录入。录入后总览、消耗、订阅各页的毛利会自动按平台重算。
+        {bankIsSource
+          ? "已启用「银行流水成本」作为权威总成本，本页录入不再计入总览/利润总额，仅用于分平台单位成本的参考拆分。"
+          : "数据库没有上游采购成本，需在此手工录入。录入后总览、消耗、订阅各页的毛利会自动按平台重算。"}
       </p>
 
       <SectionTitle>成本汇总</SectionTitle>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi
-          label="上游总成本"
+          label={bankIsSource ? "手工录入合计(参考)" : "上游总成本"}
           value={rmb(total)}
-          accent="red"
-          sub={`共 ${costs.length} 条明细`}
+          accent={bankIsSource ? "slate" : "red"}
+          sub={
+            bankIsSource
+              ? `银行流水实付 ${rmb(metrics?.cost.bank ?? 0)}`
+              : `共 ${costs.length} 条明细`
+          }
         />
         {PLATFORMS.map((p) => (
           <Kpi

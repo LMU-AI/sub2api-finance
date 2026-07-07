@@ -45,10 +45,15 @@ export default async function OverviewPage() {
     const mo = m.date.slice(0, 7);
     revByMonth[mo] = (revByMonth[mo] ?? 0) + m.amountRmb;
   }
+  // 成本按月对齐：优先银行流水当月实付；无银行数据时回退官方价值占比分摊
+  const bankCostByMonth: Record<string, number> = {};
+  for (const m of cost.byMonth) bankCostByMonth[m.month] = m.cost;
+  const hasBank = cost.bank > 0;
   const trend = months.map((mo) => {
     const 收款 = revByMonth[mo] ?? 0;
-    const 成本 =
-      totalOfficial > 0
+    const 成本 = hasBank
+      ? (bankCostByMonth[mo] ?? 0)
+      : totalOfficial > 0
         ? (cost.total * (officialByMonth[mo] ?? 0)) / totalOfficial
         : 0;
     return {
@@ -94,7 +99,13 @@ export default async function OverviewPage() {
           label="上游总成本"
           value={metrics.hasCost ? rmb(cost.total) : "未录入"}
           accent="red"
-          sub={metrics.hasCost ? "账号采购 + 服务器" : "前往成本录入"}
+          sub={
+            cost.bank > 0
+              ? "银行流水实付"
+              : metrics.hasCost
+                ? "账号采购 + 服务器"
+                : "前往成本录入"
+          }
         />
         <Kpi
           label="现金口径净利"
@@ -163,7 +174,15 @@ export default async function OverviewPage() {
         </Table>
       </Card>
 
-      <SectionTitle hint="成本按各月官方价值占比分摊估算">月度趋势</SectionTitle>
+      <SectionTitle
+        hint={
+          cost.bank > 0
+            ? "成本＝银行流水当月实付，按月对齐"
+            : "成本按各月官方价值占比分摊估算"
+        }
+      >
+        月度趋势
+      </SectionTitle>
       <Card>
         <MonthlyTrend data={trend} />
       </Card>

@@ -30,7 +30,7 @@ export default async function ConsumptionPage() {
         total_cost = 美元官方价值 · actual_cost(计费额)= 官方价值 × 倍率 = 人民币
       </p>
 
-      <SectionTitle hint="成本来自成本录入，按模型名归类到三个平台">
+      <SectionTitle hint="总成本以银行流水为准；分平台单位成本来自手工录入(可能不完整，仅供参考)">
         按上游平台拆分
       </SectionTitle>
       <div className="grid gap-3 md:grid-cols-3">
@@ -169,6 +169,11 @@ export default async function ConsumptionPage() {
               : "—"
           }
           accent="red"
+          sub={
+            metrics.cost.bank > 0
+              ? `银行流水 ${rmb(metrics.cost.total)} ÷ 官方价值`
+              : undefined
+          }
         />
       </div>
     </div>
