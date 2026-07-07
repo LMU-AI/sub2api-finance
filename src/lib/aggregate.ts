@@ -119,15 +119,64 @@ const SQL = {
     SELECT status, count(*)::int AS cnt FROM user_subscriptions
     WHERE deleted_at IS NULL GROUP BY status ORDER BY status`,
 
+  // 订阅递延（欠费）按“套餐剩余配额”计量，而非日历时间：
+  //   欠费比例 = 1 - min(1, 已用量 / 套餐总额度)
+  //   · 套餐总额度 = groups.monthly_limit_usd（月卡月度上限＝整卡总量；周卡 monthly=weekly）
+  //   · 已用量 = 该订阅累计 usage_logs.actual_cost（永不重置，规避月度窗口清零导致欠费虚高）
+  //   · 订阅已过期/停用/删除 → 已交付，欠费 0（“时间到期＝已消费”）
+  //   · 用满配额(≥100%) → 已交付，欠费 0（min(1,·) 封顶）
+  //   · 匹配不到订阅（source_order_id 覆盖率极低，改用 user+group+时间 兜底，≈98.5%）→ 回退时间直线法
   subRevenue: `
+    WITH usage_by_sub AS (
+      SELECT subscription_id, sum(actual_cost) AS used
+      FROM usage_logs
+      WHERE billing_type = 1 AND subscription_id IS NOT NULL
+      GROUP BY subscription_id
+    ),
+    orders AS (
+      SELECT po.id, po.user_id, po.subscription_group_id AS gid, po.paid_at,
+             (po.amount - po.refund_amount) AS net, po.subscription_days AS sdays
+      FROM payment_orders po
+      WHERE po.order_type = 'subscription'
+        AND po.status IN ('COMPLETED','PARTIALLY_REFUNDED')
+        AND po.paid_at IS NOT NULL
+    ),
+    matched AS (
+      SELECT o.net, o.paid_at, o.sdays,
+             us.id AS us_id, us.status AS us_status, us.deleted_at AS us_del, us.expires_at,
+             COALESCE(ubs.used, 0) AS used, g.monthly_limit_usd AS lim
+      FROM orders o
+      LEFT JOIN LATERAL (
+        SELECT u.id, u.status, u.deleted_at, u.expires_at
+        FROM user_subscriptions u
+        WHERE u.user_id = o.user_id AND u.group_id = o.gid
+          AND abs(EXTRACT(EPOCH FROM (u.starts_at - o.paid_at))) < 86400
+        ORDER BY abs(EXTRACT(EPOCH FROM (u.starts_at - o.paid_at)))
+        LIMIT 1
+      ) us ON true
+      LEFT JOIN usage_by_sub ubs ON ubs.subscription_id = us.id
+      LEFT JOIN groups g ON g.id = o.gid
+    ),
+    scored AS (
+      SELECT net,
+        CASE
+          -- 匹配不到订阅：回退时间直线法
+          WHEN us_id IS NULL THEN 1.0 - LEAST(1.0, GREATEST(0.0,
+            EXTRACT(EPOCH FROM (now()-paid_at))/86400.0 / NULLIF(sdays,0)))
+          -- 已过期/停用/删除：已交付，欠费 0
+          WHEN us_del IS NOT NULL OR us_status <> 'active' OR expires_at <= now() THEN 0.0
+          -- 无月度额度：无法按配额衡量，视为已交付
+          WHEN lim IS NULL OR lim = 0 THEN 0.0
+          -- 活跃：按剩余配额比例
+          ELSE 1.0 - LEAST(1.0, used / lim)
+        END AS deferred_ratio
+      FROM matched
+    )
     SELECT count(*)::int AS cnt,
-      COALESCE(sum(amount-refund_amount),0) AS net_sold,
-      COALESCE(sum((amount-refund_amount) * LEAST(1.0, GREATEST(0.0,
-        EXTRACT(EPOCH FROM (now()-paid_at))/86400.0 / NULLIF(subscription_days,0)))),0) AS recognized,
-      COALESCE(sum((amount-refund_amount) * (1.0 - LEAST(1.0, GREATEST(0.0,
-        EXTRACT(EPOCH FROM (now()-paid_at))/86400.0 / NULLIF(subscription_days,0))))),0) AS deferred
-    FROM payment_orders
-    WHERE order_type='subscription' AND status IN ('COMPLETED','PARTIALLY_REFUNDED') AND paid_at IS NOT NULL`,
+      COALESCE(sum(net),0) AS net_sold,
+      COALESCE(sum(net * (1.0 - deferred_ratio)),0) AS recognized,
+      COALESCE(sum(net * deferred_ratio),0) AS deferred
+    FROM scored`,
 
   heavySubs: `
     SELECT u.email, g.name AS group_name,

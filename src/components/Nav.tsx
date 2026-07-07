@@ -80,6 +80,16 @@ function IconTransfer() {
     </svg>
   );
 }
+function IconBank() {
+  return (
+    <svg {...svg}>
+      <path d="M3 21h18" />
+      <path d="M3 10h18" />
+      <path d="M5 10v11M19 10v11M9 10v11M15 10v11" />
+      <path d="M12 3 3 8h18l-9-5Z" />
+    </svg>
+  );
+}
 
 const LINKS = [
   { href: "/", label: "经营总览", Icon: IconOverview },
@@ -89,6 +99,7 @@ const LINKS = [
   { href: "/manual-revenue", label: "对公转账", Icon: IconTransfer },
   { href: "/users", label: "用户分析", Icon: IconUsers },
   { href: "/costs", label: "成本录入", Icon: IconCost },
+  { href: "/bank", label: "银行流水成本", Icon: IconBank },
 ];
 
 export function Nav({ generatedAt }: { generatedAt: string | null }) {

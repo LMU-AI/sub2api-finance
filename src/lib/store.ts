@@ -44,6 +44,35 @@ const SCHEMA = `
     key   TEXT PRIMARY KEY,
     value TEXT
   );
+  -- 银行流水成本：独立口径，不并入 monthly_costs / 三口径利润
+  CREATE TABLE IF NOT EXISTS bank_import_batches (
+    id             BIGSERIAL PRIMARY KEY,
+    filename       TEXT,
+    file_hash      TEXT,
+    card_no        TEXT,
+    period_start   DATE,
+    period_end     DATE,
+    parsed_count   INT NOT NULL DEFAULT 0,
+    inserted_count INT NOT NULL DEFAULT 0,
+    skipped_count  INT NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  -- 逐笔明细账；dedup_hash 唯一 → 重复上传 / 区间重叠自动去重（无交叉无污染）
+  CREATE TABLE IF NOT EXISTS bank_transactions (
+    id           BIGSERIAL PRIMARY KEY,
+    card_no      TEXT NOT NULL,
+    booked_date  DATE NOT NULL,
+    booked_time  TEXT NOT NULL,
+    amount_rmb   NUMERIC(20,2) NOT NULL,   -- 有符号：负=支出(成本)
+    balance_rmb  NUMERIC(20,2),
+    txn_name     TEXT,
+    counterparty TEXT,
+    direction    TEXT NOT NULL,            -- 'out' | 'in'
+    dedup_hash   TEXT NOT NULL UNIQUE,
+    batch_id     BIGINT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_bank_txn_date ON bank_transactions (booked_date);
 `;
 
 function pool(): Pool {

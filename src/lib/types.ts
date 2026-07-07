@@ -184,3 +184,49 @@ export interface ManualRevenue {
   note: string | null;
   updatedAt: string;
 }
+
+/** 银行流水解析出的每月成本（独立口径，不并入 monthly_costs） */
+export interface BankMonthlyCost {
+  month: string; // YYYY-MM
+  cost: number; // 当月支出合计（成本）= |负金额| 之和
+  outCount: number; // 支出笔数
+  inflow: number; // 进账合计（仅参考，不冲减成本）
+  inCount: number; // 进账笔数
+}
+
+/** 一次银行流水 PDF 导入的记录 */
+export interface BankBatch {
+  id: number;
+  filename: string | null;
+  cardNo: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  parsedCount: number;
+  insertedCount: number;
+  skippedCount: number;
+  createdAt: string;
+}
+
+/** 单笔银行流水明细 */
+export interface BankTransaction {
+  id: number;
+  cardNo: string;
+  bookedDate: string;
+  bookedTime: string;
+  amountRmb: number; // 有符号：负=支出
+  balanceRmb: number | null;
+  txnName: string | null;
+  counterparty: string | null;
+  direction: "out" | "in";
+}
+
+/** 上传解析后的返回统计 */
+export interface BankImportResult {
+  parsed: number;
+  inserted: number;
+  skipped: number;
+  cardNo: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  byMonth: BankMonthlyCost[];
+}

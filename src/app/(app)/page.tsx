@@ -119,7 +119,7 @@ export default async function OverviewPage() {
           label="订阅递延收入"
           value={rmb(liabilities.subDeferred)}
           accent="amber"
-          sub="卡已售、服务未交付完"
+          sub="按剩余配额计、未交付部分"
         />
         <Kpi
           label="注册用户"
