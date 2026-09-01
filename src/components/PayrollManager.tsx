@@ -94,6 +94,8 @@ export function PayrollManager({
             onClick={() => {
               setTab(t.key);
               setMsg("");
+              // 切 tab 强制重取服务端数据：保证工资/分红调整后，汇总与年度视图同步最新
+              router.refresh();
             }}
             className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               tab === t.key
@@ -1665,7 +1667,13 @@ function AnnualTab({
     for (const d of dividends) ys.add(d.yearMonth.slice(0, 4));
     return [...ys].sort().reverse();
   }, [entries, dividends]);
-  const [year, setYear] = useState(years[0] ?? String(new Date().getFullYear()));
+  const [year, setYear] = useState(
+    () => years[0] ?? String(new Date().getFullYear()),
+  );
+  // 数据更新后年份列表变了（如首次录入/跨年新增），当前选中年份不存在时自动跳到最新年
+  if (years.length > 0 && !years.includes(year)) {
+    setYear(years[0]);
+  }
 
   const { names, matrix, totals } = useMemo(() => {
     // 员工 × 月 → {net, cost}
