@@ -28,6 +28,21 @@ function currentYm(): string {
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+/** 安全求值公式文本（仅数字与 + - × x * / () .），不可计算返回 null */
+function evalFormula(s: string): number | null {
+  const cleaned = s
+    .replace(/×/g, "*")
+    .replace(/[xX]/g, "*")
+    .replace(/[，,]/g, "")
+    .trim();
+  if (!cleaned || !/^[\d\s.+\-*/()]+$/.test(cleaned)) return null;
+  try {
+    const v = Function(`"use strict"; return (${cleaned})`)() as unknown;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 function calcEntry(
   base: number,
   days: number | null,
@@ -936,6 +951,13 @@ function EditDividendRow({
   const [formula, setFormula] = useState(dividend.formula ?? "");
   const [busy, setBusy] = useState(false);
 
+  // 公式可计算时驱动税前：改公式 → 税前实时重算（也可再手改税前覆盖）
+  function onFormulaChange(v: string) {
+    setFormula(v);
+    const computed = evalFormula(v);
+    if (computed != null) setAmount(String(round2(computed)));
+  }
+
   const net =
     Number(amount) > 0 ? round2(Number(amount) * (1 - Number(rate))) : null;
 
@@ -971,7 +993,8 @@ function EditDividendRow({
         <input
           type="text"
           value={formula}
-          onChange={(e) => setFormula(e.target.value)}
+          onChange={(e) => onFormulaChange(e.target.value)}
+          title="公式可计算时自动更新税前（支持 + - × / 和括号）"
           className={`${mini} w-28 font-mono`}
         />
       </td>

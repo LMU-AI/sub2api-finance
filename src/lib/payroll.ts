@@ -17,6 +17,22 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** 安全求值公式文本（仅数字与 + - × x * / () .），不可计算返回 null */
+export function evalDividendFormula(s: string): number | null {
+  const cleaned = s
+    .replace(/×/g, "*")
+    .replace(/[xX]/g, "*")
+    .replace(/[，,]/g, "")
+    .trim();
+  if (!cleaned || !/^[\d\s.+\-*/()]+$/.test(cleaned)) return null;
+  try {
+    const v = Function(`"use strict"; return (${cleaned})`)() as unknown;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 const YM_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -426,6 +442,12 @@ export async function updatePayrollDividend(input: {
   if (input.taxRate != null) assertTaxRate(input.taxRate);
   if (input.paidAt && !DATE_RE.test(input.paidAt))
     throw new Error("实付日期格式应为 YYYY-MM-DD");
+  // 只改公式没带税前时，公式可计算则由公式驱动税前（保持两列一致）
+  if (input.formula && input.amountPreTax == null) {
+    const computed = evalDividendFormula(input.formula);
+    if (computed != null && computed >= 0)
+      input = { ...input, amountPreTax: round2(computed) };
+  }
   const d = await fdb();
   await d.query(
     `UPDATE payroll_dividends SET
