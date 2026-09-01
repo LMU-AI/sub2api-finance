@@ -457,14 +457,19 @@ export async function deletePayrollDividend(id: number): Promise<void> {
   await d.query("DELETE FROM payroll_dividends WHERE id = $1", [id]);
 }
 
-/** 分红计算器：项目额 × 提成池 × 每人分成 + 基础分 → 批量生成明细 */
+/** 分红计算器：项目额 × 提成池 × 每人分成 + 基础分 → 批量生成明细。
+ *  税点只在每人身上计一次：税率按人取（参数 > 员工主档默认），总额层不设税率 */
 export async function generateDividendsFromProject(input: {
   yearMonth: string;
   projectName: string;
   projectAmount: number;
   poolRatio: number;
-  taxRate?: number;
-  participants: { employeeId: number; shareRatio?: number; baseShare?: number }[];
+  participants: {
+    employeeId: number;
+    shareRatio?: number;
+    baseShare?: number;
+    taxRate?: number;
+  }[];
 }): Promise<number> {
   assertYm(input.yearMonth);
   if (!Number.isFinite(input.projectAmount) || input.projectAmount < 0)
@@ -475,15 +480,22 @@ export async function generateDividendsFromProject(input: {
     input.poolRatio > 1
   )
     throw new Error("提成池比例应在 0 ~ 1 之间");
-  const rate = input.taxRate ?? 0.08;
-  assertTaxRate(rate);
   if (!input.participants?.length) throw new Error("请至少添加一名参与人");
 
   const pool = input.projectAmount * input.poolRatio;
   const d = await fdb();
+  const rateRows = await d.query(
+    "SELECT id, default_tax_rate FROM employees WHERE id = ANY($1)",
+    [input.participants.map((p) => p.employeeId)],
+  );
+  const defaultRate = new Map<number, number>(
+    rateRows.rows.map((r) => [Number(r.id), Number(r.default_tax_rate)]),
+  );
   let inserted = 0;
   for (const p of input.participants) {
     if (!Number.isFinite(p.employeeId)) throw new Error("参与人无效");
+    const rate = p.taxRate ?? defaultRate.get(p.employeeId) ?? 0.08;
+    assertTaxRate(rate);
     const share = p.shareRatio ?? 0;
     const base = p.baseShare ?? 0;
     const preTax = round2(pool * share + base);

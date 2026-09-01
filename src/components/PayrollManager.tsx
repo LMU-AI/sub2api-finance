@@ -1020,6 +1020,7 @@ interface CalcRow {
   employeeId: number;
   shareRatio: string;
   baseShare: string;
+  taxRate: string; // 空 = 用员工主档默认
 }
 
 function DividendCalculator({
@@ -1034,28 +1035,32 @@ function DividendCalculator({
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
   const [poolRatio, setPoolRatio] = useState("0.6");
-  const [rate, setRate] = useState("0.08");
   const [rows, setRows] = useState<CalcRow[]>(
     active.slice(0, 1).map((e) => ({
       employeeId: e.id,
       shareRatio: "",
       baseShare: "",
+      taxRate: "",
     })),
   );
   const [busy, setBusy] = useState(false);
 
   const pool = Number(amount) > 0 ? Number(amount) * Number(poolRatio) : 0;
-  const taxRate = Number(rate);
 
+  // 税点只在每人身上算一次：行内税率（空则取员工主档默认），总额层不计税
   const preview = rows.map((r) => {
+    const emp = active.find((e) => e.id === r.employeeId);
     const share = Number(r.shareRatio) || 0;
     const base = Number(r.baseShare) || 0;
     const preTax = round2(pool * share + base);
+    const rate =
+      r.taxRate !== "" ? Number(r.taxRate) : (emp?.defaultTaxRate ?? 0.08);
     return {
       ...r,
-      name: active.find((e) => e.id === r.employeeId)?.name ?? "?",
+      name: emp?.name ?? "?",
+      rate,
       preTax,
-      net: round2(preTax * (1 - taxRate)),
+      net: round2(preTax * (1 - rate)),
     };
   });
   const validCount = preview.filter((p) => p.preTax > 0).length;
@@ -1070,11 +1075,11 @@ function DividendCalculator({
       projectName: project,
       projectAmount: Number(amount),
       poolRatio: Number(poolRatio),
-      taxRate,
       participants: rows.map((row) => ({
         employeeId: row.employeeId,
         shareRatio: Number(row.shareRatio) || 0,
         baseShare: Number(row.baseShare) || 0,
+        ...(row.taxRate !== "" ? { taxRate: Number(row.taxRate) } : {}),
       })),
     });
     setBusy(false);
@@ -1130,18 +1135,11 @@ function DividendCalculator({
             className={`${inputCls} w-24 bg-white`}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
-          税率
-          <input
-            type="number"
-            step="0.01"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            className={`${inputCls} w-24 bg-white`}
-          />
-        </label>
         <div className="pb-2 text-xs text-slate-600">
           提成池 = <b>{rmb(pool, 2)}</b>
+          <span className="ml-2 text-slate-400">
+            税点在每人行内单独计，总额不重复计税
+          </span>
         </div>
       </div>
 
@@ -1157,6 +1155,7 @@ function DividendCalculator({
               <th className="px-2 py-1.5 text-right font-semibold">
                 = 税前分红
               </th>
+              <th className="px-2 py-1.5 text-right font-semibold">税率</th>
               <th className="px-2 py-1.5 text-right font-semibold">到手</th>
               <th className="px-2 py-1.5 text-right font-semibold">操作</th>
             </tr>
@@ -1201,6 +1200,16 @@ function DividendCalculator({
                 <td className="px-2 py-1.5 text-right font-semibold">
                   {rmb(p.preTax, 2)}
                 </td>
+                <td className="px-2 py-1.5 text-right">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={p.taxRate}
+                    onChange={(e) => setRow(i, { taxRate: e.target.value })}
+                    placeholder={String(p.rate)}
+                    className="w-16 rounded border border-slate-300 px-1.5 py-1 text-right text-xs outline-none focus:border-indigo-500"
+                  />
+                </td>
                 <td className="px-2 py-1.5 text-right text-emerald-600">
                   {rmb(p.net, 2)}
                 </td>
@@ -1229,6 +1238,7 @@ function DividendCalculator({
                 employeeId: active[0]?.id ?? 0,
                 shareRatio: "",
                 baseShare: "",
+                taxRate: "",
               },
             ])
           }
@@ -1244,7 +1254,7 @@ function DividendCalculator({
           {busy ? "生成中…" : `✓ 一键生成 ${validCount} 条分红明细`}
         </button>
         <span className="text-[11px] text-slate-500">
-          每人税前 = 提成池 × 分成比例 + 基础分；公式自动写入明细
+          每人税前 = 提成池 × 分成比例 + 基础分；税率默认取员工主档，可按行覆盖；公式自动写入明细
         </span>
       </div>
     </div>
