@@ -284,6 +284,15 @@ export interface PayrollDividend {
   netRmb: number; // 到手 = 税前 × (1−税率)
 }
 
+/** 年度视图数据（服务端从工资条+分红派生，客户端纯展示，保证与前置数据同步） */
+export interface PayrollAnnual {
+  years: string[]; // 倒序
+  /** year → 员工名 → 12 个月税后到手（工资+分红），无数据月为 0 */
+  matrix: Record<string, Record<string, number[]>>;
+  /** year → 员工名 → 全年合计 */
+  totals: Record<string, Record<string, number>>;
+}
+
 /** 薪酬聚合（口径接线用）：已付进 P&L，未付进负债 */
 export interface PayrollAggregates {
   payrollCostPaid: number; // 已付工资公司成本合计 → 计入总成本

@@ -3,6 +3,7 @@ import type {
   Employee,
   PayoutMode,
   PayrollAggregates,
+  PayrollAnnual,
   PayrollDividend,
   PayrollEntry,
 } from "./types";
@@ -534,6 +535,33 @@ export async function markMonthPaid(
     [yearMonth, paidAt],
   );
   return (r1.rowCount ?? 0) + (r2.rowCount ?? 0);
+}
+
+/** 年度视图：每人每月税后到手（工资+分红）。与列表同源同批派生，前置数据一变必然同步 */
+export function buildPayrollAnnual(
+  entries: PayrollEntry[],
+  dividends: PayrollDividend[],
+): PayrollAnnual {
+  const matrix: Record<string, Record<string, number[]>> = {};
+  const add = (ym: string, name: string, net: number) => {
+    const year = ym.slice(0, 4);
+    const mi = Number(ym.slice(5, 7)) - 1;
+    if (mi < 0 || mi > 11) return;
+    const yearMap = (matrix[year] ??= {});
+    const arr = (yearMap[name] ??= Array(12).fill(0));
+    arr[mi] = round2(arr[mi] + net);
+  };
+  for (const e of entries) add(e.yearMonth, e.employeeName, e.netRmb);
+  for (const d of dividends) add(d.yearMonth, d.employeeName, d.netRmb);
+  const years = Object.keys(matrix).sort().reverse();
+  const totals: Record<string, Record<string, number>> = {};
+  for (const y of years) {
+    totals[y] = {};
+    for (const [name, arr] of Object.entries(matrix[y])) {
+      totals[y][name] = round2(arr.reduce((a, b) => a + b, 0));
+    }
+  }
+  return { years, matrix, totals };
 }
 
 /** 口径聚合：已付进 P&L（工资→总成本、分红→现金流出），未付进负债 */

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Employee,
+  PayrollAnnual,
   PayrollDividend,
   PayrollEntry,
 } from "@/lib/types";
@@ -64,10 +65,12 @@ export function PayrollManager({
   employees,
   entries,
   dividends,
+  annual,
 }: {
   employees: Employee[];
   entries: PayrollEntry[];
   dividends: PayrollDividend[];
+  annual: PayrollAnnual;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("entries");
@@ -126,9 +129,7 @@ export function PayrollManager({
         {tab === "employees" && (
           <EmployeesTab employees={employees} done={done} />
         )}
-        {tab === "annual" && (
-          <AnnualTab entries={entries} dividends={dividends} />
-        )}
+        {tab === "annual" && <AnnualTab annual={annual} />}
       </div>
     </div>
   );
@@ -1653,58 +1654,19 @@ function EditEmployeeRow({
 }
 
 // ================= 年度视图 =================
+// 数据由服务端 buildPayrollAnnual 与工资条/分红同批派生（annual prop），
+// 本组件纯展示——前置数据更新 → router.refresh → props 变 → 必然同步。
 
-function AnnualTab({
-  entries,
-  dividends,
-}: {
-  entries: PayrollEntry[];
-  dividends: PayrollDividend[];
-}) {
-  const years = useMemo(() => {
-    const ys = new Set<string>();
-    for (const e of entries) ys.add(e.yearMonth.slice(0, 4));
-    for (const d of dividends) ys.add(d.yearMonth.slice(0, 4));
-    return [...ys].sort().reverse();
-  }, [entries, dividends]);
-  const [year, setYear] = useState(
-    () => years[0] ?? String(new Date().getFullYear()),
-  );
-  // 数据更新后年份列表变了（如首次录入/跨年新增），当前选中年份不存在时自动跳到最新年
-  if (years.length > 0 && !years.includes(year)) {
-    setYear(years[0]);
-  }
-
-  const { names, matrix, totals } = useMemo(() => {
-    // 员工 × 月 → {net, cost}
-    const names = new Set<string>();
-    const cell = new Map<string, { net: number; cost: number }>();
-    const add = (name: string, mo: string, net: number, cost: number) => {
-      names.add(name);
-      const k = `${name}|${mo}`;
-      const c = cell.get(k) ?? { net: 0, cost: 0 };
-      c.net += net;
-      c.cost += cost;
-      cell.set(k, c);
-    };
-    for (const e of entries)
-      if (e.yearMonth.startsWith(year))
-        add(e.employeeName, e.yearMonth.slice(5, 7), e.netRmb, e.costRmb);
-    for (const d of dividends)
-      if (d.yearMonth.startsWith(year))
-        add(d.employeeName, d.yearMonth.slice(5, 7), d.netRmb, d.amountPreTax);
-    const nameList = [...names].sort();
-    const totals = new Map<string, number>();
-    for (const n of nameList) {
-      let t = 0;
-      for (let m = 1; m <= 12; m++) {
-        const k = `${n}|${String(m).padStart(2, "0")}`;
-        t += cell.get(k)?.net ?? 0;
-      }
-      totals.set(n, t);
-    }
-    return { names: nameList, matrix: cell, totals };
-  }, [entries, dividends, year]);
+function AnnualTab({ annual }: { annual: PayrollAnnual }) {
+  const fallbackYear = String(new Date().getFullYear());
+  const [picked, setPicked] = useState<string | null>(null);
+  // 不把年份锁进 state：默认永远跟随最新数据的第一年，仅当用户手选且仍有效时保留
+  const year =
+    picked && annual.years.includes(picked)
+      ? picked
+      : (annual.years[0] ?? fallbackYear);
+  const yearMap = annual.matrix[year] ?? {};
+  const names = Object.keys(yearMap).sort();
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1714,10 +1676,10 @@ function AnnualTab({
         </div>
         <select
           value={year}
-          onChange={(e) => setYear(e.target.value)}
+          onChange={(e) => setPicked(e.target.value)}
           className="rounded-lg border border-slate-300 px-2 py-1 text-xs outline-none focus:border-indigo-500"
         >
-          {(years.length ? years : [year]).map((y) => (
+          {(annual.years.length ? annual.years : [year]).map((y) => (
             <option key={y} value={y}>
               {y} 年
             </option>
@@ -1755,21 +1717,16 @@ function AnnualTab({
                   <td className="whitespace-nowrap px-2 py-2 font-medium">
                     {n}
                   </td>
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const c = matrix.get(
-                      `${n}|${String(i + 1).padStart(2, "0")}`,
-                    );
-                    return (
-                      <td
-                        key={i}
-                        className="whitespace-nowrap px-2 py-2 text-right text-xs"
-                      >
-                        {c ? rmb(c.net) : "—"}
-                      </td>
-                    );
-                  })}
+                  {yearMap[n].map((net, i) => (
+                    <td
+                      key={i}
+                      className="whitespace-nowrap px-2 py-2 text-right text-xs"
+                    >
+                      {net > 0 ? rmb(net) : "—"}
+                    </td>
+                  ))}
                   <td className="whitespace-nowrap px-2 py-2 text-right font-semibold text-emerald-600">
-                    {rmb(totals.get(n) ?? 0, 2)}
+                    {rmb(annual.totals[year]?.[n] ?? 0, 2)}
                   </td>
                 </tr>
               ))}

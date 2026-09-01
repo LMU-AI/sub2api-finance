@@ -1,4 +1,5 @@
 import {
+  buildPayrollAnnual,
   listEmployees,
   listPayrollDividends,
   listPayrollEntries,
@@ -72,6 +73,7 @@ export default async function PayrollPage() {
         employees={employees}
         entries={entries}
         dividends={dividends}
+        annual={buildPayrollAnnual(entries, dividends)}
       />
     </div>
   );
