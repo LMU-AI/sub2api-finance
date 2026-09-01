@@ -555,7 +555,8 @@ export async function getPayrollAggregates(): Promise<PayrollAggregates> {
   }
   for (const row of dividends.rows) {
     const dv = mapDividend(row);
-    if (dv.paidAt) dividendCashPaid += dv.amountPreTax;
+    // 现金流出按税后实付：税点已在每人份额中扣除，总额不再重复计税
+    if (dv.paidAt) dividendCashPaid += dv.netRmb;
     else payrollPayable += dv.netRmb;
   }
 

@@ -287,7 +287,7 @@ export interface PayrollDividend {
 /** 薪酬聚合（口径接线用）：已付进 P&L，未付进负债 */
 export interface PayrollAggregates {
   payrollCostPaid: number; // 已付工资公司成本合计 → 计入总成本
-  dividendCashPaid: number; // 已付分红税前合计 → 只扣现金口径
+  dividendCashPaid: number; // 已付分红税后实付合计 → 只扣现金口径（税点每人已扣，不重复计税）
   payrollPayable: number; // 未付税后合计 → 员工薪酬应付（负债）
   payrollCostByMonth: { month: string; cost: number }[]; // 已付工资按实付月聚合（趋势图）
 }

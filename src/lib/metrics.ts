@@ -60,7 +60,7 @@ export interface Metrics {
     manual: number; // 手工录入合计
     byMonth: BankMonthlyCost[]; // 银行流水按月实付
     payroll: number; // 已付工资公司成本合计（含在 total 内）
-    dividend: number; // 已付分红税前合计（只扣现金口径，不在 total 内）
+    dividend: number; // 已付分红税后实付合计（只扣现金口径，不在 total 内）
     payrollByMonth: { month: string; cost: number }[]; // 已付工资按实付月
   };
   revenue: {
@@ -186,7 +186,7 @@ export function computeMetrics(
   );
 
   // ---- 三口径利润 ----
-  // 分红是税后利润分配：只作为现金流出扣现金口径，不进合同/权责（避免对同一笔利润扣两次）
+  // 分红是税后利润分配：按税后实付作为现金流出，只扣现金口径，不进合同/权责（避免对同一笔利润扣两次）
   const profit = {
     cash: pnl(
       balanceRecharged + subSold + manualTransfer,

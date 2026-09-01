@@ -52,7 +52,7 @@ export default async function PayrollPage() {
           label="本月分红（税前）"
           value={rmb(moDividendPreTax, 2)}
           accent="amber"
-          sub={`${moDividends.length} 条 · 只进现金口径`}
+          sub={`${moDividends.length} 条 · 按税后实付扣现金口径`}
         />
         <Kpi
           label="本月税后合计"
