@@ -458,7 +458,7 @@ export async function deletePayrollDividend(id: number): Promise<void> {
 }
 
 /** 分红计算器：项目额 × 提成池 × 每人分成 + 基础分 → 批量生成明细。
- *  税点只在每人身上计一次：税率按人取（参数 > 员工主档默认），总额层不设税率 */
+ *  税点只按每行明示的值计一次：未传 = 0（不扣税）；总额层不设税率 */
 export async function generateDividendsFromProject(input: {
   yearMonth: string;
   projectName: string;
@@ -484,17 +484,11 @@ export async function generateDividendsFromProject(input: {
 
   const pool = input.projectAmount * input.poolRatio;
   const d = await fdb();
-  const rateRows = await d.query(
-    "SELECT id, default_tax_rate FROM employees WHERE id = ANY($1)",
-    [input.participants.map((p) => p.employeeId)],
-  );
-  const defaultRate = new Map<number, number>(
-    rateRows.rows.map((r) => [Number(r.id), Number(r.default_tax_rate)]),
-  );
   let inserted = 0;
   for (const p of input.participants) {
     if (!Number.isFinite(p.employeeId)) throw new Error("参与人无效");
-    const rate = p.taxRate ?? defaultRate.get(p.employeeId) ?? 0.08;
+    // 税点只按行内明示的值计一次；未传 = 0（不扣税），不隐式回落主档默认
+    const rate = p.taxRate ?? 0;
     assertTaxRate(rate);
     const share = p.shareRatio ?? 0;
     const base = p.baseShare ?? 0;

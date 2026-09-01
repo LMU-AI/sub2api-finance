@@ -1022,7 +1022,7 @@ interface CalcRow {
   employeeId: number;
   shareRatio: string;
   baseShare: string;
-  taxRate: string; // 空 = 用员工主档默认
+  taxRate: string; // 行内明示税率；空/0 = 该行不扣税
 }
 
 function DividendCalculator({
@@ -1037,26 +1037,30 @@ function DividendCalculator({
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
   const [poolRatio, setPoolRatio] = useState("0.6");
-  const [rows, setRows] = useState<CalcRow[]>(
-    active.slice(0, 1).map((e) => ({
-      employeeId: e.id,
+  // 行内税率预填员工主档默认（看得见、可改、可清零），提交按行内明示值
+  const newRow = (empId?: number): CalcRow => {
+    const emp = active.find((e) => e.id === empId) ?? active[0];
+    return {
+      employeeId: emp?.id ?? 0,
       shareRatio: "",
       baseShare: "",
-      taxRate: "",
-    })),
+      taxRate: emp ? String(emp.defaultTaxRate) : "0",
+    };
+  };
+  const [rows, setRows] = useState<CalcRow[]>(() =>
+    active.slice(0, 1).map((e) => newRow(e.id)),
   );
   const [busy, setBusy] = useState(false);
 
   const pool = Number(amount) > 0 ? Number(amount) * Number(poolRatio) : 0;
 
-  // 税点只在每人身上算一次：行内税率（空则取员工主档默认），总额层不计税
+  // 税点只按行内明示的值计一次（空/0 = 不扣税）；总额层不计税
   const preview = rows.map((r) => {
     const emp = active.find((e) => e.id === r.employeeId);
     const share = Number(r.shareRatio) || 0;
     const base = Number(r.baseShare) || 0;
     const preTax = round2(pool * share + base);
-    const rate =
-      r.taxRate !== "" ? Number(r.taxRate) : (emp?.defaultTaxRate ?? 0.08);
+    const rate = Number(r.taxRate) || 0;
     return {
       ...r,
       name: emp?.name ?? "?",
@@ -1081,7 +1085,7 @@ function DividendCalculator({
         employeeId: row.employeeId,
         shareRatio: Number(row.shareRatio) || 0,
         baseShare: Number(row.baseShare) || 0,
-        ...(row.taxRate !== "" ? { taxRate: Number(row.taxRate) } : {}),
+        taxRate: Number(row.taxRate) || 0,
       })),
     });
     setBusy(false);
@@ -1168,9 +1172,15 @@ function DividendCalculator({
                 <td className="px-2 py-1.5">
                   <select
                     value={p.employeeId}
-                    onChange={(e) =>
-                      setRow(i, { employeeId: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      const emp = active.find((x) => x.id === id);
+                      // 换人时税率跟着换成该员工主档值（仍显式可改）
+                      setRow(i, {
+                        employeeId: id,
+                        taxRate: emp ? String(emp.defaultTaxRate) : "0",
+                      });
+                    }}
                     className="rounded border border-slate-300 px-1.5 py-1 text-xs outline-none focus:border-indigo-500"
                   >
                     {active.map((e) => (
@@ -1208,7 +1218,7 @@ function DividendCalculator({
                     step="0.01"
                     value={p.taxRate}
                     onChange={(e) => setRow(i, { taxRate: e.target.value })}
-                    placeholder={String(p.rate)}
+                    placeholder="0"
                     className="w-16 rounded border border-slate-300 px-1.5 py-1 text-right text-xs outline-none focus:border-indigo-500"
                   />
                 </td>
@@ -1233,17 +1243,7 @@ function DividendCalculator({
 
       <div className="mt-3 flex items-center gap-3">
         <button
-          onClick={() =>
-            setRows((rs) => [
-              ...rs,
-              {
-                employeeId: active[0]?.id ?? 0,
-                shareRatio: "",
-                baseShare: "",
-                taxRate: "",
-              },
-            ])
-          }
+          onClick={() => setRows((rs) => [...rs, newRow()])}
           className={btnLight}
         >
           + 添加参与人
@@ -1256,7 +1256,7 @@ function DividendCalculator({
           {busy ? "生成中…" : `✓ 一键生成 ${validCount} 条分红明细`}
         </button>
         <span className="text-[11px] text-slate-500">
-          每人税前 = 提成池 × 分成比例 + 基础分；税率默认取员工主档，可按行覆盖；公式自动写入明细
+          每人税前 = 提成池 × 分成比例 + 基础分；税点只按每行填写的值计（0 = 不扣税）；公式自动写入明细
         </span>
       </div>
     </div>
