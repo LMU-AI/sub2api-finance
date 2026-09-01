@@ -90,6 +90,15 @@ function IconBank() {
     </svg>
   );
 }
+function IconPayroll() {
+  return (
+    <svg {...svg}>
+      <path d="M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+      <circle cx="12" cy="13" r="2.5" />
+    </svg>
+  );
+}
 
 const LINKS = [
   { href: "/", label: "经营总览", Icon: IconOverview },
@@ -99,6 +108,7 @@ const LINKS = [
   { href: "/manual-revenue", label: "对公转账", Icon: IconTransfer },
   { href: "/users", label: "用户分析", Icon: IconUsers },
   { href: "/costs", label: "成本录入", Icon: IconCost },
+  { href: "/payroll", label: "薪资/工资条", Icon: IconPayroll },
   { href: "/bank", label: "银行流水成本", Icon: IconBank },
 ];
 

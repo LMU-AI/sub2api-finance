@@ -2,6 +2,7 @@ import type {
   BankMonthlyCost,
   ManualRevenue,
   MonthlyCost,
+  PayrollAggregates,
   Platform,
   Snapshot,
 } from "./types";
@@ -52,12 +53,15 @@ export interface SubBreakeven {
 export interface Metrics {
   hasCost: boolean;
   cost: {
-    total: number; // 权威总成本：有银行流水则=银行流水，否则=手工录入
+    total: number; // 权威总成本：(银行流水 | 手工录入) + 已付工资
     byPlatform: Record<Platform, number>; // 手工录入分平台（参考/分平台单位成本用）
     server: number;
     bank: number; // 银行流水实付合计
     manual: number; // 手工录入合计
     byMonth: BankMonthlyCost[]; // 银行流水按月实付
+    payroll: number; // 已付工资公司成本合计（含在 total 内）
+    dividend: number; // 已付分红税前合计（只扣现金口径，不在 total 内）
+    payrollByMonth: { month: string; cost: number }[]; // 已付工资按实付月
   };
   revenue: {
     balanceRecharged: number;
@@ -80,6 +84,7 @@ export interface Metrics {
     userBalance: number;
     referralPayable: number;
     subDeferred: number;
+    payrollPayable: number; // 未付薪酬（税后净额）
     total: number;
   };
   unit: {
@@ -129,6 +134,7 @@ export function computeMetrics(
   costs: MonthlyCost[],
   manualRevenue: ManualRevenue[],
   bankMonthly: BankMonthlyCost[] = [],
+  payroll?: PayrollAggregates,
 ): Metrics {
   // ---- 成本 ----
   // 手工录入（分平台，供分平台单位成本参考）
@@ -144,8 +150,13 @@ export function computeMetrics(
   const hasManual = manualTotal > 0;
   // 银行流水实付（权威总成本，所有账面支出都走该卡）
   const bankTotal = bankMonthly.reduce((a, b) => a + b.cost, 0);
-  // 权威总成本：优先银行流水，回退手工
-  const totalCost = bankTotal > 0 ? bankTotal : manualTotal;
+  // 薪酬：已付工资进总成本；已付分红只扣现金口径；未付进负债
+  const payrollCostPaid = payroll?.payrollCostPaid ?? 0;
+  const dividendCashPaid = payroll?.dividendCashPaid ?? 0;
+  const payrollPayable = payroll?.payrollPayable ?? 0;
+  // 权威总成本：(优先银行流水，回退手工) + 已付工资
+  // 注意：若银行流水已含发薪支出会重复，由总览页提示人工判断（v0.4 口径）
+  const totalCost = (bankTotal > 0 ? bankTotal : manualTotal) + payrollCostPaid;
   const hasCost = totalCost > 0;
 
   // ---- 收入 ----
@@ -175,8 +186,12 @@ export function computeMetrics(
   );
 
   // ---- 三口径利润 ----
+  // 分红是税后利润分配：只作为现金流出扣现金口径，不进合同/权责（避免对同一笔利润扣两次）
   const profit = {
-    cash: pnl(balanceRecharged + subSold + manualTransfer, totalCost),
+    cash: pnl(
+      balanceRecharged + subSold + manualTransfer,
+      totalCost + dividendCashPaid,
+    ),
     contract: pnl(balanceConsumed + subSold, totalCost),
     accrual: pnl(balanceConsumed + subRecognized, totalCost),
   };
@@ -186,7 +201,12 @@ export function computeMetrics(
     userBalance: snap.users.sumBalance,
     referralPayable: snap.users.sumReferralUsable,
     subDeferred,
-    total: snap.users.sumBalance + snap.users.sumReferralUsable + subDeferred,
+    payrollPayable,
+    total:
+      snap.users.sumBalance +
+      snap.users.sumReferralUsable +
+      subDeferred +
+      payrollPayable,
   };
 
   // ---- 单位经济 ----
@@ -305,6 +325,9 @@ export function computeMetrics(
       bank: bankTotal,
       manual: manualTotal,
       byMonth: bankMonthly,
+      payroll: payrollCostPaid,
+      dividend: dividendCashPaid,
+      payrollByMonth: payroll?.payrollCostByMonth ?? [],
     },
     revenue: {
       balanceRecharged,

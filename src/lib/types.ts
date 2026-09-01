@@ -230,3 +230,64 @@ export interface BankImportResult {
   periodEnd: string | null;
   byMonth: BankMonthlyCost[];
 }
+
+export type PayoutMode = "gross" | "net";
+
+/** 员工主档：调薪只改默认值，历史工资条快照不受影响 */
+export interface Employee {
+  id: number;
+  name: string;
+  role: string | null;
+  defaultBaseSalary: number | null; // NULL/0 = 无固定工资（仅分红）
+  defaultTaxRate: number;
+  defaultPayoutMode: PayoutMode;
+  status: "active" | "left";
+  joinedAt: string | null;
+  leftAt: string | null;
+  note: string | null;
+  updatedAt: string;
+}
+
+/** 月度工资条（costRmb/netRmb 为 lib 层派生，不落库） */
+export interface PayrollEntry {
+  id: number;
+  yearMonth: string;
+  employeeId: number;
+  employeeName: string;
+  employeeRole: string | null;
+  baseSalary: number;
+  attendanceDays: number | null; // NULL = 满月
+  payrollDays: number;
+  taxRate: number;
+  payoutMode: PayoutMode;
+  paidAt: string | null; // NULL = 未实付
+  note: string | null;
+  updatedAt: string;
+  costRmb: number; // 公司成本：gross=折算税前；net=折算税后÷(1−税率)
+  netRmb: number; // 员工到手
+}
+
+/** 项目分红明细（只进现金口径；netRmb 派生） */
+export interface PayrollDividend {
+  id: number;
+  yearMonth: string;
+  employeeId: number;
+  employeeName: string;
+  employeeRole: string | null;
+  projectName: string | null;
+  amountPreTax: number;
+  taxRate: number;
+  formula: string | null;
+  paidAt: string | null;
+  note: string | null;
+  updatedAt: string;
+  netRmb: number; // 到手 = 税前 × (1−税率)
+}
+
+/** 薪酬聚合（口径接线用）：已付进 P&L，未付进负债 */
+export interface PayrollAggregates {
+  payrollCostPaid: number; // 已付工资公司成本合计 → 计入总成本
+  dividendCashPaid: number; // 已付分红税前合计 → 只扣现金口径
+  payrollPayable: number; // 未付税后合计 → 员工薪酬应付（负债）
+  payrollCostByMonth: { month: string; cost: number }[]; // 已付工资按实付月聚合（趋势图）
+}

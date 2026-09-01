@@ -27,6 +27,7 @@ export default async function OverviewPage() {
       ...snap.payments.monthly.map((m) => m.month),
       ...snap.usage.monthly.map((m) => m.month),
       ...manualRevenue.map((m) => m.date.slice(0, 7)),
+      ...cost.payrollByMonth.map((m) => m.month),
     ]),
   )
     .filter(Boolean)
@@ -45,17 +46,21 @@ export default async function OverviewPage() {
     const mo = m.date.slice(0, 7);
     revByMonth[mo] = (revByMonth[mo] ?? 0) + m.amountRmb;
   }
-  // 成本按月对齐：优先银行流水当月实付；无银行数据时回退官方价值占比分摊
+  // 成本按月对齐：优先银行流水当月实付；无银行数据时回退官方价值占比分摊（只摊上游手工成本）
+  // 已付薪资按「实付月」精确叠加，不参与占比分摊
   const bankCostByMonth: Record<string, number> = {};
   for (const m of cost.byMonth) bankCostByMonth[m.month] = m.cost;
+  const payrollCostByMonth: Record<string, number> = {};
+  for (const m of cost.payrollByMonth) payrollCostByMonth[m.month] = m.cost;
   const hasBank = cost.bank > 0;
   const trend = months.map((mo) => {
     const 收款 = revByMonth[mo] ?? 0;
-    const 成本 = hasBank
+    const upstream = hasBank
       ? (bankCostByMonth[mo] ?? 0)
       : totalOfficial > 0
-        ? (cost.total * (officialByMonth[mo] ?? 0)) / totalOfficial
+        ? (cost.manual * (officialByMonth[mo] ?? 0)) / totalOfficial
         : 0;
+    const 成本 = upstream + (payrollCostByMonth[mo] ?? 0);
     return {
       month: mo,
       收款: Math.round(收款),
@@ -88,6 +93,15 @@ export default async function OverviewPage() {
         </div>
       )}
 
+      {cost.bank > 0 && (cost.payroll > 0 || cost.dividend > 0) && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+          ⚠️ 当前总成本 = 银行流水实付 + 已付薪资（
+          {rmb(cost.payroll)}
+          {cost.dividend > 0 ? `，另有已付分红 ${rmb(cost.dividend)} 扣现金口径` : ""}
+          ）。若发薪/分红也走该银行卡，会与流水中的支出重复计入，请自行判断——发薪不走该卡则无需处理。
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi
           label="累计净收款"
@@ -96,14 +110,18 @@ export default async function OverviewPage() {
           sub={`充值 ${rmb(revenue.balanceRecharged)} + 订阅 ${rmb(revenue.subSold)} + 对公 ${rmb(revenue.manualTransfer)}`}
         />
         <Kpi
-          label="上游总成本"
+          label="总成本"
           value={metrics.hasCost ? rmb(cost.total) : "未录入"}
           accent="red"
           sub={
             cost.bank > 0
-              ? "银行流水实付"
+              ? cost.payroll > 0
+                ? `银行流水 + 已付薪资 ${rmb(cost.payroll)}`
+                : "银行流水实付"
               : metrics.hasCost
-                ? "账号采购 + 服务器"
+                ? cost.payroll > 0
+                  ? `上游成本 + 已付薪资 ${rmb(cost.payroll)}`
+                  : "账号采购 + 服务器"
                 : "前往成本录入"
           }
         />
@@ -215,7 +233,7 @@ export default async function OverviewPage() {
       </div>
 
       <SectionTitle>负债与预收（不能当利润花）</SectionTitle>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <Kpi
           label="用户余额结余"
           value={rmb(liabilities.userBalance)}
@@ -230,6 +248,12 @@ export default async function OverviewPage() {
           label="推广佣金应付"
           value={rmb(liabilities.referralPayable)}
           accent="amber"
+        />
+        <Kpi
+          label="员工薪酬应付"
+          value={rmb(liabilities.payrollPayable)}
+          accent="amber"
+          sub="已录未付的工资/分红（税后）"
         />
         <Kpi
           label="负债合计"

@@ -46,6 +46,9 @@ docker-compose.yaml
 # 财务数据库（本地数据，不上传）
 /data/
 
+# 内部方案演示（含真实姓名与薪资金额，不上传）
+/docs/
+
 # vercel
 .vercel
 

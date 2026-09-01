@@ -73,6 +73,50 @@ const SCHEMA = `
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS idx_bank_txn_date ON bank_transactions (booked_date);
+  -- 员工主档：调薪只改这里，工资条存快照互不影响
+  CREATE TABLE IF NOT EXISTS employees (
+    id                  BIGSERIAL PRIMARY KEY,
+    name                TEXT NOT NULL UNIQUE,
+    role                TEXT,
+    default_base_salary NUMERIC(20,2),                   -- NULL/0 = 无固定工资（仅分红）
+    default_tax_rate    NUMERIC(6,4) NOT NULL DEFAULT 0.08,
+    default_payout_mode TEXT NOT NULL DEFAULT 'gross',   -- 'gross' | 'net'(包税)
+    status              TEXT NOT NULL DEFAULT 'active',  -- 'active' | 'left'
+    joined_at           DATE,
+    left_at             DATE,
+    note                TEXT,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  -- 月度工资条：一人一月一条（UNIQUE 保证一键生成幂等）
+  CREATE TABLE IF NOT EXISTS payroll_entries (
+    id              BIGSERIAL PRIMARY KEY,
+    year_month      TEXT NOT NULL,                       -- 'YYYY-MM'
+    employee_id     BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    base_salary     NUMERIC(20,2) NOT NULL,
+    attendance_days NUMERIC(6,2),                        -- NULL = 满月
+    payroll_days    NUMERIC(6,2) NOT NULL DEFAULT 21.75,
+    tax_rate        NUMERIC(6,4) NOT NULL DEFAULT 0.08,
+    payout_mode     TEXT NOT NULL DEFAULT 'gross',       -- gross: 基数=税前; net: 基数=约定税后(包税)
+    paid_at         DATE,                                -- NULL = 未实付
+    note            TEXT,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (year_month, employee_id)
+  );
+  -- 项目分红：一人一月可多条（多项目）；只进现金口径
+  CREATE TABLE IF NOT EXISTS payroll_dividends (
+    id              BIGSERIAL PRIMARY KEY,
+    year_month      TEXT NOT NULL,
+    employee_id     BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    project_name    TEXT,
+    amount_pre_tax  NUMERIC(20,2) NOT NULL,
+    tax_rate        NUMERIC(6,4) NOT NULL DEFAULT 0.08,
+    formula         TEXT,                                -- 追溯："210000×0.55+32300"
+    paid_at         DATE,
+    note            TEXT,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_payroll_entries_ym ON payroll_entries (year_month);
+  CREATE INDEX IF NOT EXISTS idx_payroll_div_ym     ON payroll_dividends (year_month);
 `;
 
 function pool(): Pool {
