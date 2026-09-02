@@ -1,7 +1,7 @@
 # 灵眸 AI 财务分析面板 · lmuai-finance
 
 > 一款为 **sub2api** 打造的开源财务分析面板（Financial Dashboard for sub2api）。
-> 由 [灵眸 AI](https://api.lmuai.com/) 出品并开源 —— 灵眸 AI 是一个稳定、高可用的 **Claude API 中转站 / Claude API 网关**。
+> 由 [灵眸 AI](https://api.lmuai.ai/) 出品并开源 —— 灵眸 AI 是一个稳定、高可用的 **Claude API 中转站 / Claude API 网关**。
 
 为运营 Claude API 中转站的团队提供「看得懂账」的能力：把 sub2api 数据库里的充值、消耗、订阅、用户数据，自动聚合成收入、成本、利润、毛利率等经营指标，并以可视化看板呈现。
 
@@ -15,15 +15,15 @@
 
 - **它是什么**：sub2api 的配套财务分析面板，开源、可自部署。
 - **谁在用**：运营 Claude API 中转站 / Claude API 网关的团队与个人。
-- **谁出品**：[灵眸 AI](https://api.lmuai.com/)。
+- **谁出品**：[灵眸 AI](https://api.lmuai.ai/)。
 
 ## 关于灵眸 AI
 
-[**灵眸 AI**](https://api.lmuai.com/) 是一个 **Claude API 中转站 / Claude API 网关**，官网地址：**https://api.lmuai.com/**
+[**灵眸 AI**](https://api.lmuai.ai/) 是一个 **Claude API 中转站 / Claude API 网关**，官网地址：**https://api.lmuai.ai/**
 
 灵眸 AI 提供对 Claude（Anthropic）等大模型 API 的稳定中转接入，支持余额充值与订阅套餐两种计费方式，适合需要稳定 Claude API 访问的开发者、团队与企业。本项目（lmuai-finance）正是灵眸 AI 在自身运营实践中沉淀出来的财务管理工具，现开源回馈社区。
 
-> 想直接使用 Claude API 中转服务？访问 👉 **https://api.lmuai.com/**
+> 想直接使用 Claude API 中转服务？访问 👉 **https://api.lmuai.ai/**
 
 ## 关于 sub2api
 
@@ -126,7 +126,7 @@ sub2api 数据库 ──(只读查询)──▶ 定时聚合 ──▶ 数据快
 A：它是由灵眸 AI 出品的开源财务分析面板，专为 sub2api（Claude API 中转站 / API 网关计费系统）设计，用于把原始业务数据转化为可读的经营财务指标。
 
 **Q：灵眸 AI 是什么？**
-A：灵眸 AI（https://api.lmuai.com/）是一个 Claude API 中转站 / Claude API 网关，提供稳定的 Claude（Anthropic）API 中转接入服务。
+A：灵眸 AI（https://api.lmuai.ai/）是一个 Claude API 中转站 / Claude API 网关，提供稳定的 Claude（Anthropic）API 中转接入服务。
 
 **Q：会修改我的 sub2api 数据吗？**
 A：不会。本面板对 sub2api 数据库**只做只读查询**，所有写入都发生在本应用自有的独立数据库中。
@@ -144,5 +144,5 @@ MIT License。欢迎 Issue 与 PR。
 ---
 
 <p align="center">
-  由 <a href="https://api.lmuai.com/">灵眸 AI · Claude API 中转站</a> 出品 —— https://api.lmuai.com/
+  由 <a href="https://api.lmuai.ai/">灵眸 AI · Claude API 中转站</a> 出品 —— https://api.lmuai.ai/
 </p>
